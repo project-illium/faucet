@@ -1,0 +1,125 @@
+body {
+    background-color: #212121;
+    color: #FFF;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 75vh;
+    margin: 0;
+}
+
+.container {
+    text-align: center;
+    width: 400px;
+}
+
+.ascii-art {
+    color: #FF4081;
+    font-family: monospace;
+    font-size: 20px;
+    margin-bottom: 0px;
+    display: inline-block;
+    text-align: left;
+    margin-left: -80px;
+}
+
+.input-field {
+    width: 500px;
+    margin-left: -50px;
+}
+
+.input-field input[type="text"] {
+    color: #212121;
+    background-color: #FFF;
+    border: none;
+    box-shadow: none;
+    padding: 2px 15px;
+    font-size: 16px;
+    border-radius: 4px;
+}
+
+.input-field label {
+    padding-left: 15px;
+}
+
+.input-field input[type="text"]:focus + label {
+    transform: translateY(-20px);
+    font-size: 15px;
+    padding-bottom: 10px;
+    padding-left: 0;
+}
+
+.input-field input[type="text"]:focus {
+    box-shadow: 0 1px 0 0 #FFF;
+}
+
+.btn {
+    background-color: #1a73e8;
+    border-radius: 20px;
+    margin-top: 20px;
+    margin-left: 30px;
+}
+
+.return-text {
+    color: #FFF;
+    font-size: 14px;
+    margin-top: 10px;
+    text-align: center;
+    margin-left: 30px;
+}
+.addr-text {
+    color: #FFF;
+    font-size: 14px;
+    margin-top: -10px;
+    text-align: center;
+    margin-left: -200px;
+}
+
+.card {
+    width: 850px;
+    background-color: #212121;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    padding: 10px;
+    border: 1px solid #03a9f4;
+    margin-left: -200px;
+    text-align: left;
+}
+
+.card-header {
+    display: block;
+    align-content: flex-start;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.card-header p strong {
+    margin-right: 5px;
+}
+
+.card-body {
+    padding-top: 10px;
+}
+
+.card-body h3 {
+    font-size: 16px;
+    margin: 0;
+}
+
+.card-body ul {
+    margin: 0;
+    padding: 0;
+    list-style-type: none;
+}
+
+.card-body ul li {
+    margin-bottom: 5px;
+}
+
+.recent-blocks{
+    text-align: left;
+    font-size: 22px;
+    margin-top: 50px;
+    margin-left: -200px;
+}

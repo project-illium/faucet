@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Google-like Page</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <script src="https://unpkg.com/vue@2.6.14/dist/vue.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="container">
+    <pre class="ascii-art">
+        .__.__  .__  .__
+        |__|  | |  | |__|__ __  _____
+        |  |  | |  | |  |  |  \/     \
+        |  |  |_|  |_|  |  |  /  Y Y  \
+        |__|____/____/__|____/|__|_|  /
+                                    \/
+    </pre>
+    <form action="#" method="POST">
+        <div class="input-field">
+            <input type="text" id="input" name="input">
+            <label for="input">Enter an address</label>
+        </div>
+        <button class="btn waves-effect waves-light" type="submit" name="action">Get Coins</button>
+    </form>
+    <p class="return-text">Return coins to the faucet when done:</p>
+    <p class="addr-text">reg1pyuu5hl8cdtgn98syan9curauuywkjqf5zewe3967t5kp57kmd7wplsycrfpa59f7v0hzlf49na8e00w3uu6dv5whrxlgwc3u02cxjgghtctzq</p>
+
+    <div class="recent-blocks">
+        Recent Blocks:
+    </div>
+    <div id="app">
+        <card :data="cards[0]"></card>
+    </div>
+</div>
+<script src="index.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+</body>
+</html>
