@@ -24,8 +24,9 @@ import (
 )
 
 type faucetServer struct {
-	client pb.BlockchainServiceClient
-	wts    webtransport.Server
+	blockchainClient pb.BlockchainServiceClient
+	walletClient     pb.WalletServiceClient
+	wts              webtransport.Server
 }
 
 func main() {
@@ -49,25 +50,26 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	client := pb.NewBlockchainServiceClient(conn)
+	blockchainClient := pb.NewBlockchainServiceClient(conn)
+	walletClient := pb.NewWalletServiceClient(conn)
 
 	wts := webtransport.Server{
 		H3: http3.Server{Addr: ":443"},
 	}
 	s := faucetServer{
-		client: client,
-		wts:    wts,
+		blockchainClient: blockchainClient,
+		walletClient:     walletClient,
+		wts:              wts,
 	}
 
 	mx := http.NewServeMux()
 	r := mux.NewRouter()
 	r.Methods("OPTIONS")
 	r.HandleFunc("/blocks/{fromHeight}", s.handleGetBlocks).Methods("GET")
+	r.HandleFunc("/getcoins", s.handleGetCoins).Methods("POST")
 	r.PathPrefix("/").Handler(http.HandlerFunc(serveStaticFile))
-	mx.Handle("/", r)
-
-	// Create a new HTTP endpoint /webtransport.
 	r.HandleFunc("/webtransport", s.handleWebTransport).Methods("GET")
+	mx.Handle("/", r)
 
 	go wts.ListenAndServeTLS(os.Args[1], os.Args[2])
 
@@ -85,7 +87,8 @@ func serveStaticFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *faucetServer) handleWebTransport(w http.ResponseWriter, r *http.Request) {
-	blockStream, err := s.client.SubscribeBlocks(context.Background(), &pb.SubscribeBlocksRequest{
+	fmt.Println("webtransport evoked")
+	blockStream, err := s.blockchainClient.SubscribeBlocks(context.Background(), &pb.SubscribeBlocksRequest{
 		FullBlock:        true,
 		FullTransactions: false,
 	})
@@ -170,7 +173,7 @@ func (s *faucetServer) handleGetBlocks(w http.ResponseWriter, r *http.Request) {
 	}
 	blks := make([]*blkData, 0, 10)
 	if idx < 0 {
-		resp, err := s.client.GetBlockchainInfo(context.Background(), &pb.GetBlockchainInfoRequest{})
+		resp, err := s.blockchainClient.GetBlockchainInfo(context.Background(), &pb.GetBlockchainInfoRequest{})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -179,7 +182,7 @@ func (s *faucetServer) handleGetBlocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for i := 0; i < 10; i++ {
-		resp, err := s.client.GetBlock(context.Background(), &pb.GetBlockRequest{
+		resp, err := s.blockchainClient.GetBlock(context.Background(), &pb.GetBlockRequest{
 			IdOrHeight: &pb.GetBlockRequest_Height{Height: uint32(idx)},
 		})
 		if err != nil {
@@ -220,4 +223,25 @@ func (s *faucetServer) handleGetBlocks(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	fmt.Fprint(w, string(out))
+}
+
+func (s *faucetServer) handleGetCoins(w http.ResponseWriter, r *http.Request) {
+	type message struct {
+		Addr string `json:"addr"`
+	}
+	var m message
+	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	_, err := s.walletClient.Spend(context.Background(), &pb.SpendRequest{
+		ToAddress: m.Addr,
+		Amount:    100000000,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	fmt.Fprint(w, string("{}"))
 }
