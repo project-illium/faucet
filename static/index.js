@@ -57,7 +57,7 @@ new Vue({
 			}
 
 			// Set up WebSocket connection
-			const websocket = new WebSocket("wss://faucet.illium.org:443"); // Adjust the URL and port to your WebSocket server
+			const websocket = new WebSocket("wss://faucet.illium.org/ws"); // Adjust the URL and port to your WebSocket server
 
 			// When a message is received
 			websocket.onmessage = event => {
@@ -112,7 +112,7 @@ new Vue({
 document.getElementById('get-coins-form').addEventListener('submit', function(e) {
 	e.preventDefault(); // Prevent the default form submission
 
-	var input = document.getElementById('input').value;
+	const input = document.getElementById('input').value;
 
 	fetch('https://faucet.illium.org/getcoins', {
 		method: 'POST',
@@ -126,7 +126,7 @@ document.getElementById('get-coins-form').addEventListener('submit', function(e)
 		.then(response => response.json())
 		.then(data => {
 			console.log(data);
-			input = ""; // Clear the input field after form submission
+			document.getElementById('input').value = ""; // Clear the input field after form submission
 		})
 		.catch((error) => {
 			console.error('Error:', error);
