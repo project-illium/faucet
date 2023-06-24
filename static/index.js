@@ -94,3 +94,24 @@ new Vue({
 		}
 	}
 })
+
+document.getElementById('get-coins-form').addEventListener('submit', function(e) {
+	e.preventDefault(); // Prevent the default form submission
+
+	const input = document.getElementById('input').value;
+
+	fetch('https://faucet.illium.org/getcoins', {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({
+			addr: input
+		})
+	})
+		.then(response => response.json())
+		.then(data => console.log(data))
+		.catch((error) => {
+			console.error('Error:', error);
+		});
+});
