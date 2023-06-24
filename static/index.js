@@ -110,7 +110,10 @@ document.getElementById('get-coins-form').addEventListener('submit', function(e)
 		})
 	})
 		.then(response => response.json())
-		.then(data => console.log(data))
+		.then(data => {
+			console.log(data);
+			inputElement.value = ""; // Clear the input field after form submission
+		})
 		.catch((error) => {
 			console.error('Error:', error);
 		});

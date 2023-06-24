@@ -62,6 +62,64 @@ func main() {
 		wts:              wts,
 	}
 
+	wsHub := newHub()
+	go wsHub.run()
+
+	go func() {
+		blockStream, err := s.blockchainClient.SubscribeBlocks(context.Background(), &pb.SubscribeBlocksRequest{
+			FullBlock:        true,
+			FullTransactions: false,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		/*time.AfterFunc(time.Second*5, func() {
+			bd := &blkData{
+				BlockID: types.NewID([]byte{0x11, 0x22}).String(),
+				Height:  99,
+			}
+
+			out, err := json.MarshalIndent(bd, "", "    ")
+			if err != nil {
+				log.Printf("block stream receive error: %s\n", err)
+				return
+			}
+			stream.Write(out)
+		})*/
+		for {
+			blk, err := blockStream.Recv()
+			if err != nil {
+				log.Printf("block stream receive error: %s\n", err)
+				return
+			}
+
+			pid, err := peer.IDFromBytes(blk.BlockInfo.Producer_ID)
+			if err != nil {
+				log.Printf("block stream receive error: %s\n", err)
+				return
+			}
+
+			bd := &blkData{
+				BlockID:    types.NewID(blk.BlockInfo.Block_ID).String(),
+				Height:     blk.BlockInfo.Height,
+				ProducerID: pid.String(),
+				Txids:      make([]string, 0, len(blk.GetTransactions())),
+			}
+
+			for _, tx := range blk.GetTransactions() {
+				bd.Txids = append(bd.Txids, types.NewID(tx.GetTransaction_ID()).String())
+			}
+
+			out, err := json.MarshalIndent(bd, "", "    ")
+			if err != nil {
+				log.Printf("block stream receive error: %s\n", err)
+				return
+			}
+			wsHub.Broadcast <- out
+		}
+	}()
+
 	mx := http.NewServeMux()
 	r := mux.NewRouter()
 	r.Methods("OPTIONS")
@@ -70,6 +128,7 @@ func main() {
 	r.PathPrefix("/").Handler(http.HandlerFunc(serveStaticFile))
 	r.HandleFunc("/webtransport", s.handleWebTransport).Methods("GET")
 	mx.Handle("/", r)
+	mx.Handle("/ws", newWebsocketHandler(wsHub))
 
 	go wts.ListenAndServeTLS(os.Args[1], os.Args[2])
 
@@ -88,69 +147,7 @@ func serveStaticFile(w http.ResponseWriter, r *http.Request) {
 
 func (s *faucetServer) handleWebTransport(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("webtransport evoked")
-	blockStream, err := s.blockchainClient.SubscribeBlocks(context.Background(), &pb.SubscribeBlocksRequest{
-		FullBlock:        true,
-		FullTransactions: false,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	conn, err := s.wts.Upgrade(w, r)
-	if err != nil {
-		log.Printf("upgrading failed: %s\n", err)
-		w.WriteHeader(500)
-		return
-	}
-	stream, err := conn.OpenStream()
-	if err != nil {
-		log.Printf("block stream receive error: %s\n", err)
-		return
-	}
-	/*time.AfterFunc(time.Second*5, func() {
-		bd := &blkData{
-			BlockID: types.NewID([]byte{0x11, 0x22}).String(),
-			Height:  99,
-		}
-
-		out, err := json.MarshalIndent(bd, "", "    ")
-		if err != nil {
-			log.Printf("block stream receive error: %s\n", err)
-			return
-		}
-		stream.Write(out)
-	})*/
-	for {
-		blk, err := blockStream.Recv()
-		if err != nil {
-			log.Printf("block stream receive error: %s\n", err)
-			return
-		}
-
-		pid, err := peer.IDFromBytes(blk.BlockInfo.Producer_ID)
-		if err != nil {
-			log.Printf("block stream receive error: %s\n", err)
-			return
-		}
-
-		bd := &blkData{
-			BlockID:    types.NewID(blk.BlockInfo.Block_ID).String(),
-			Height:     blk.BlockInfo.Height,
-			ProducerID: pid.String(),
-			Txids:      make([]string, 0, len(blk.GetTransactions())),
-		}
-
-		for _, tx := range blk.GetTransactions() {
-			bd.Txids = append(bd.Txids, types.NewID(tx.GetTransaction_ID()).String())
-		}
-
-		out, err := json.MarshalIndent(bd, "", "    ")
-		if err != nil {
-			log.Printf("block stream receive error: %s\n", err)
-			return
-		}
-		stream.Write(out)
-	}
 }
 
 type blkData struct {
