@@ -12,7 +12,6 @@ import (
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/rpc/pb"
 	"github.com/project-illium/ilxd/types"
-	"github.com/quic-go/quic-go/http3"
 	"github.com/quic-go/webtransport-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -53,13 +52,9 @@ func main() {
 	blockchainClient := pb.NewBlockchainServiceClient(conn)
 	walletClient := pb.NewWalletServiceClient(conn)
 
-	wts := webtransport.Server{
-		H3: http3.Server{Addr: ":443"},
-	}
 	s := faucetServer{
 		blockchainClient: blockchainClient,
 		walletClient:     walletClient,
-		wts:              wts,
 	}
 
 	wsHub := newHub()
@@ -129,8 +124,6 @@ func main() {
 	r.HandleFunc("/webtransport", s.handleWebTransport).Methods("GET")
 	mx.Handle("/", r)
 	mx.Handle("/ws", newWebsocketHandler(wsHub))
-
-	go wts.ListenAndServeTLS(os.Args[1], os.Args[2])
 
 	http.ListenAndServeTLS(":443", os.Args[1], os.Args[2], mx)
 }

@@ -112,7 +112,7 @@ new Vue({
 document.getElementById('get-coins-form').addEventListener('submit', function(e) {
 	e.preventDefault(); // Prevent the default form submission
 
-	const input = document.getElementById('input').value;
+	var input = document.getElementById('input').value;
 
 	fetch('https://faucet.illium.org/getcoins', {
 		method: 'POST',
@@ -126,7 +126,7 @@ document.getElementById('get-coins-form').addEventListener('submit', function(e)
 		.then(response => response.json())
 		.then(data => {
 			console.log(data);
-			inputElement.value = ""; // Clear the input field after form submission
+			input = ""; // Clear the input field after form submission
 		})
 		.catch((error) => {
 			console.error('Error:', error);
