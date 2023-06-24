@@ -30,7 +30,7 @@ new Vue({
 	},
 	mounted() {
 		this.fetchInitialCards();
-		this.setupWebTransport();
+		this.setupWebSocket();
 		window.addEventListener('scroll', this.handleScroll);
 	},
 	beforeDestroy() {
@@ -49,16 +49,30 @@ new Vue({
 					console.error('Error fetching initial cards:', error);
 				});
 		},
-		setupWebTransport() {
-			if (!('WebTransport' in window)) {
-				console.error('WebTransport is not supported in this browser.');
+		setupWebSocket() {
+			// Check if WebSocket is supported
+			if (!("WebSocket" in window)) {
+				console.error("WebSocket is not supported in this browser.");
 				return;
 			}
-			// Set up WebTransport connection
-			const webTransport = new WebTransport('https://127.0.0.1/webtransport');
-			webTransport.onmessage = event => {
+
+			// Set up WebSocket connection
+			const websocket = new WebSocket("wss://faucet.illium.org:443"); // Adjust the URL and port to your WebSocket server
+
+			// When a message is received
+			websocket.onmessage = event => {
 				const card = JSON.parse(event.data);
 				this.receivedCards.unshift(card); // Put the new card at the top of the list
+			};
+
+			// Handle errors
+			websocket.onerror = error => {
+				console.error("WebSocket Error: ", error);
+			};
+
+			// When the connection is closed
+			websocket.onclose = event => {
+				console.log("WebSocket Connection Closed", event);
 			};
 		},
 		handleScroll() {

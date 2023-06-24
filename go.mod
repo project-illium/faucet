@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/websocket v1.5.0
 	github.com/libp2p/go-libp2p v0.28.1
 	github.com/project-illium/ilxd v0.0.0-20230620142738-518614f5717b
 	github.com/quic-go/quic-go v0.33.0
