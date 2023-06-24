@@ -25,6 +25,7 @@ import (
 
 type faucetServer struct {
 	client pb.BlockchainServiceClient
+	wts    webtransport.Server
 }
 
 func main() {
@@ -49,16 +50,13 @@ func main() {
 		log.Fatal(err)
 	}
 	client := pb.NewBlockchainServiceClient(conn)
+
+	wts := webtransport.Server{
+		H3: http3.Server{Addr: ":443"},
+	}
 	s := faucetServer{
 		client: client,
-	}
-
-	blockStream, err := client.SubscribeBlocks(context.Background(), &pb.SubscribeBlocksRequest{
-		FullBlock:        true,
-		FullTransactions: false,
-	})
-	if err != nil {
-		log.Fatal(err)
+		wts:    wts,
 	}
 
 	mx := http.NewServeMux()
@@ -68,67 +66,8 @@ func main() {
 	r.PathPrefix("/").Handler(http.HandlerFunc(serveStaticFile))
 	mx.Handle("/", r)
 
-	wts := webtransport.Server{
-		H3: http3.Server{Addr: ":443"},
-	}
 	// Create a new HTTP endpoint /webtransport.
-	http.HandleFunc("/webtransport", func(w http.ResponseWriter, r *http.Request) {
-		conn, err := wts.Upgrade(w, r)
-		if err != nil {
-			log.Printf("upgrading failed: %s\n", err)
-			w.WriteHeader(500)
-			return
-		}
-		stream, err := conn.OpenStream()
-		if err != nil {
-			log.Printf("block stream receive error: %s\n", err)
-			return
-		}
-		/*time.AfterFunc(time.Second*5, func() {
-			bd := &blkData{
-				BlockID: types.NewID([]byte{0x11, 0x22}).String(),
-				Height:  99,
-			}
-
-			out, err := json.MarshalIndent(bd, "", "    ")
-			if err != nil {
-				log.Printf("block stream receive error: %s\n", err)
-				return
-			}
-			stream.Write(out)
-		})*/
-		for {
-			blk, err := blockStream.Recv()
-			if err != nil {
-				log.Printf("block stream receive error: %s\n", err)
-				return
-			}
-
-			pid, err := peer.IDFromBytes(blk.BlockInfo.Producer_ID)
-			if err != nil {
-				log.Printf("block stream receive error: %s\n", err)
-				return
-			}
-
-			bd := &blkData{
-				BlockID:    types.NewID(blk.BlockInfo.Block_ID).String(),
-				Height:     blk.BlockInfo.Height,
-				ProducerID: pid.String(),
-				Txids:      make([]string, 0, len(blk.GetTransactions())),
-			}
-
-			for _, tx := range blk.GetTransactions() {
-				bd.Txids = append(bd.Txids, types.NewID(tx.GetTransaction_ID()).String())
-			}
-
-			out, err := json.MarshalIndent(bd, "", "    ")
-			if err != nil {
-				log.Printf("block stream receive error: %s\n", err)
-				return
-			}
-			stream.Write(out)
-		}
-	})
+	r.HandleFunc("/webtransport", s.handleWebTransport).Methods("GET")
 
 	go wts.ListenAndServeTLS(os.Args[1], os.Args[2])
 
@@ -143,6 +82,72 @@ func serveStaticFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.ServeFile(w, r, filePath)
+}
+
+func (s *faucetServer) handleWebTransport(w http.ResponseWriter, r *http.Request) {
+	blockStream, err := s.client.SubscribeBlocks(context.Background(), &pb.SubscribeBlocksRequest{
+		FullBlock:        true,
+		FullTransactions: false,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	conn, err := s.wts.Upgrade(w, r)
+	if err != nil {
+		log.Printf("upgrading failed: %s\n", err)
+		w.WriteHeader(500)
+		return
+	}
+	stream, err := conn.OpenStream()
+	if err != nil {
+		log.Printf("block stream receive error: %s\n", err)
+		return
+	}
+	/*time.AfterFunc(time.Second*5, func() {
+		bd := &blkData{
+			BlockID: types.NewID([]byte{0x11, 0x22}).String(),
+			Height:  99,
+		}
+
+		out, err := json.MarshalIndent(bd, "", "    ")
+		if err != nil {
+			log.Printf("block stream receive error: %s\n", err)
+			return
+		}
+		stream.Write(out)
+	})*/
+	for {
+		blk, err := blockStream.Recv()
+		if err != nil {
+			log.Printf("block stream receive error: %s\n", err)
+			return
+		}
+
+		pid, err := peer.IDFromBytes(blk.BlockInfo.Producer_ID)
+		if err != nil {
+			log.Printf("block stream receive error: %s\n", err)
+			return
+		}
+
+		bd := &blkData{
+			BlockID:    types.NewID(blk.BlockInfo.Block_ID).String(),
+			Height:     blk.BlockInfo.Height,
+			ProducerID: pid.String(),
+			Txids:      make([]string, 0, len(blk.GetTransactions())),
+		}
+
+		for _, tx := range blk.GetTransactions() {
+			bd.Txids = append(bd.Txids, types.NewID(tx.GetTransaction_ID()).String())
+		}
+
+		out, err := json.MarshalIndent(bd, "", "    ")
+		if err != nil {
+			log.Printf("block stream receive error: %s\n", err)
+			return
+		}
+		stream.Write(out)
+	}
 }
 
 type blkData struct {
