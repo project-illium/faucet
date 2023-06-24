@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 )
@@ -126,9 +127,9 @@ func main() {
 		}
 	})
 
-	go wts.ListenAndServe()
+	go wts.ListenAndServeTLS(os.Args[1], os.Args[2])
 
-	http.ListenAndServe(":8080", mx)
+	http.ListenAndServeTLS(":443", os.Args[1], os.Args[2], mx)
 }
 
 func serveStaticFile(w http.ResponseWriter, r *http.Request) {
