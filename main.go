@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/rpc/pb"
 	"github.com/project-illium/ilxd/types"
 	"github.com/quic-go/quic-go/http3"
@@ -36,7 +37,9 @@ func main() {
 	http.Handle("/index.js", http.FileServer(http.Dir(".")))
 	http.Handle("/styles.css", http.FileServer(http.Dir(".")))
 
-	creds, err := credentials.NewClientTLSFromFile("/home/chris/.ilxd/rpc.cert", "localhost")
+	certFile := filepath.Join(repo.DefaultHomeDir, "rpc.cert")
+
+	creds, err := credentials.NewClientTLSFromFile(certFile, "localhost")
 	if err != nil {
 		log.Fatal(err)
 	}
