@@ -2,9 +2,9 @@
 <html>
 <head>
     <title>Illium Alpha Faucet</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.3/dist/sweetalert2.all.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
     <script src="https://unpkg.com/vue@2.6.14/dist/vue.js"></script>
-    <script src="https://unpkg.com/web-streams-polyfill"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -25,7 +25,7 @@
         <button class="btn waves-effect waves-light" type="submit" name="action">Get Coins</button>
     </form>
     <p class="return-text">Return coins to the faucet when done:</p>
-    <p class="addr-text">al1pprtwlgqrv4776m5lgaghnfk9juaf62muk8w5h5pnqs6653tjauztv4znlcksa8v53jhun6c9awdqnj8wzwxd8577algru68ufyn9zwg9d0kta</p>
+    <p class="addr-text">{{.Address}}</p>
 
     <div class="recent-blocks">
         Recent Blocks:

@@ -57,7 +57,7 @@ new Vue({
 			}
 
 			// Set up WebSocket connection
-			const websocket = new WebSocket("wss://faucet.illium.org/ws"); // Adjust the URL and port to your WebSocket server
+			const websocket = new WebSocket("[[.WsUrl]]/ws"); // Adjust the URL and port to your WebSocket server
 
 			// When a message is received
 			websocket.onmessage = event => {
@@ -114,7 +114,7 @@ document.getElementById('get-coins-form').addEventListener('submit', function(e)
 
 	const input = document.getElementById('input').value;
 
-	fetch('https://faucet.illium.org/getcoins', {
+	fetch('[[.HttpUrl]]/getcoins', {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json'
@@ -127,8 +127,21 @@ document.getElementById('get-coins-form').addEventListener('submit', function(e)
 		.then(data => {
 			console.log(data);
 			document.getElementById('input').value = ""; // Clear the input field after form submission
+			Swal.fire({
+				title: 'Your coins will arrive in a few minutes',
+				background: '#343a40',
+				color: '#ffffff',
+				icon: 'success'
+			});
 		})
 		.catch((error) => {
+			document.getElementById('input').value = ""; // Clear the input field after form submission
+			Swal.fire({
+				title: error,
+				background: '#343a40',
+				color: '#ffffff',
+				icon: 'error'
+			});
 			console.error('Error:', error);
 		});
 });

@@ -5,38 +5,56 @@ package main
 
 import (
 	"context"
+	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/jessevdk/go-flags"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/project-illium/ilxd/params"
 	"github.com/project-illium/ilxd/repo"
 	"github.com/project-illium/ilxd/rpc/pb"
-	"github.com/project-illium/ilxd/types"
-	"github.com/quic-go/webtransport-go"
+	"github.com/project-illium/walletlib"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"html/template"
+	"io/fs"
 	"log"
 	"net/http"
-	"os"
+	"path"
 	"path/filepath"
 	"strconv"
+	"sync"
+	"time"
 )
 
 type faucetServer struct {
 	blockchainClient pb.BlockchainServiceClient
 	walletClient     pb.WalletServiceClient
-	wts              webtransport.Server
+	address          string
+	httpHost         string
+	wsHost           string
+	dev              bool
+
+	lockedUtoxs map[string]bool
+	mtx         sync.RWMutex
+}
+
+type Options struct {
+	Dev  bool   `long:"dev" description:"Use run a development server on localhost"`
+	Host string `short:"h" long:"host" description:"The domain name of the host"`
+	Cert string `short:"c" long:"tlscert" description:"Path to the TLS certificate file"`
+	Key  string `short:"k" long:"tlskey" description:"Path to the TLS key file"`
 }
 
 func main() {
-	// Handle the root route with the index.html file
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "index.html")
-	})
-
-	// Serve the app.js file
-	http.Handle("/index.js", http.FileServer(http.Dir(".")))
-	http.Handle("/styles.css", http.FileServer(http.Dir(".")))
+	var opts Options
+	parser := flags.NewNamedParser("faucet", flags.Default)
+	parser.AddGroup("Options", "Configuration options for the faucet", &opts)
+	if _, err := parser.Parse(); err != nil {
+		return
+	}
 
 	certFile := filepath.Join(repo.DefaultHomeDir, "rpc.cert")
 
@@ -55,6 +73,22 @@ func main() {
 	s := faucetServer{
 		blockchainClient: blockchainClient,
 		walletClient:     walletClient,
+		dev:              opts.Dev,
+		lockedUtoxs:      make(map[string]bool),
+		mtx:              sync.RWMutex{},
+	}
+
+	resp, err := walletClient.GetAddress(context.Background(), &pb.GetAddressRequest{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	s.address = resp.Address
+	if !opts.Dev {
+		s.httpHost = "https://" + opts.Host
+		s.wsHost = "wss://" + opts.Host
+	} else {
+		s.httpHost = "http://localhost:8080"
+		s.wsHost = "ws://localhost:8080"
 	}
 
 	wsHub := newHub()
@@ -69,19 +103,6 @@ func main() {
 			log.Fatal(err)
 		}
 
-		/*time.AfterFunc(time.Second*5, func() {
-			bd := &blkData{
-				BlockID: types.NewID([]byte{0x11, 0x22}).String(),
-				Height:  99,
-			}
-
-			out, err := json.MarshalIndent(bd, "", "    ")
-			if err != nil {
-				log.Printf("block stream receive error: %s\n", err)
-				return
-			}
-			stream.Write(out)
-		})*/
 		for {
 			blk, err := blockStream.Recv()
 			if err != nil {
@@ -96,14 +117,14 @@ func main() {
 			}
 
 			bd := &blkData{
-				BlockID:    types.NewID(blk.BlockInfo.Block_ID).String(),
+				BlockID:    hex.EncodeToString(blk.BlockInfo.Block_ID),
 				Height:     blk.BlockInfo.Height,
 				ProducerID: pid.String(),
 				Txids:      make([]string, 0, len(blk.GetTransactions())),
 			}
 
 			for _, tx := range blk.GetTransactions() {
-				bd.Txids = append(bd.Txids, types.NewID(tx.GetTransaction_ID()).String())
+				bd.Txids = append(bd.Txids, hex.EncodeToString(tx.GetTransaction_ID()))
 			}
 
 			out, err := json.MarshalIndent(bd, "", "    ")
@@ -120,27 +141,54 @@ func main() {
 	r.Methods("OPTIONS")
 	r.HandleFunc("/blocks/{fromHeight}", s.handleGetBlocks).Methods("GET")
 	r.HandleFunc("/getcoins", s.handleGetCoins).Methods("POST")
-	r.PathPrefix("/").Handler(http.HandlerFunc(serveStaticFile))
-	r.HandleFunc("/webtransport", s.handleWebTransport).Methods("GET")
+	r.PathPrefix("/").Handler(http.HandlerFunc(s.serveStaticFile))
 	mx.Handle("/", r)
 	mx.Handle("/ws", newWebsocketHandler(wsHub))
 
-	http.ListenAndServeTLS(":443", os.Args[1], os.Args[2], mx)
+	if opts.Dev {
+		if err := http.ListenAndServe(":8080", mx); err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		if err := http.ListenAndServeTLS(":443", opts.Cert, opts.Key, mx); err != nil {
+			log.Fatal(err)
+		}
+	}
 }
 
-func serveStaticFile(w http.ResponseWriter, r *http.Request) {
-	filePath, err := filepath.Abs("static" + r.URL.Path)
+//go:embed static/*
+var embeddedFiles embed.FS
+
+func (s *faucetServer) serveStaticFile(w http.ResponseWriter, r *http.Request) {
+	// Strip the "/static" prefix and clean the path
+	filePath := path.Clean(r.URL.Path[len("/"):])
+
+	// Use the embedded file system
+	fileSystem, err := fs.Sub(embeddedFiles, "static")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	http.ServeFile(w, r, filePath)
-}
+	if filePath == "." || filePath == "index.html" {
+		s.serveIndexHtml(w, fileSystem)
+		return
+	}
+	if filePath == "index.js" {
+		s.serveIndexJs(w, fileSystem)
+		return
+	}
 
-func (s *faucetServer) handleWebTransport(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("webtransport evoked")
+	// Create a sub file system from the specified path
+	f, err := fileSystem.Open(filePath)
+	if err != nil {
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	}
+	f.Close()
 
+	// Serve the file from the embedded file system
+	http.FileServer(http.FS(fileSystem)).ServeHTTP(w, r)
 }
 
 type blkData struct {
@@ -225,13 +273,113 @@ func (s *faucetServer) handleGetCoins(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := s.walletClient.Spend(context.Background(), &pb.SpendRequest{
-		ToAddress: m.Addr,
-		Amount:    100000000,
-	})
+	if s.dev {
+		if _, err := walletlib.DecodeAddress(m.Addr, &params.RegestParams); err != nil {
+			http.Error(w, "invalid payment address", http.StatusBadRequest)
+			return
+		}
+	} else {
+		if _, err := walletlib.DecodeAddress(m.Addr, &params.AlphanetParams); err != nil {
+			http.Error(w, "invalid payment address", http.StatusBadRequest)
+			return
+		}
+	}
+
+	resp, err := s.walletClient.GetUtxos(context.Background(), &pb.GetUtxosRequest{})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "error fetching wallet utxos", http.StatusInternalServerError)
 		return
 	}
+
+	var (
+		amt         = uint64(100000000)
+		total       = uint64(0)
+		commitments [][]byte
+	)
+
+	s.mtx.Lock()
+	for _, utxo := range resp.Utxos {
+		if !s.lockedUtoxs[hex.EncodeToString(utxo.Commitment)] {
+			commitments = append(commitments, utxo.Commitment)
+			total += utxo.Amount
+			s.lockedUtoxs[hex.EncodeToString(utxo.Commitment)] = true
+			if total >= amt {
+				break
+			}
+		}
+	}
+	s.mtx.Unlock()
+
+	if total < amt {
+		http.Error(w, "Faucet has no money. Check back later.", http.StatusBadRequest)
+		return
+	}
+
+	go func(commitmentsToSpend [][]byte, toAddr string) {
+		time.AfterFunc(time.Minute*10, func() {
+			s.mtx.Lock()
+			defer s.mtx.Unlock()
+			for _, c := range commitmentsToSpend {
+				delete(s.lockedUtoxs, hex.EncodeToString(c))
+			}
+		})
+
+		_, err = s.walletClient.Spend(context.Background(), &pb.SpendRequest{
+			ToAddress:        toAddr,
+			Amount:           100000000,
+			InputCommitments: commitmentsToSpend,
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}(commitments, m.Addr)
 	fmt.Fprint(w, string("{}"))
+}
+
+type HtmlTemplate struct {
+	Address string
+}
+
+func (s *faucetServer) serveIndexHtml(w http.ResponseWriter, fileSystem fs.FS) {
+	t, err := template.ParseFS(fileSystem, "index.html")
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	data := HtmlTemplate{
+		Address: s.address,
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	err = t.Execute(w, data)
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+type JsTemplate struct {
+	HttpUrl string
+	WsUrl   string
+}
+
+func (s *faucetServer) serveIndexJs(w http.ResponseWriter, fileSystem fs.FS) {
+	t, err := template.New("index.js").Delims("[[", "]]").ParseFS(fileSystem, "index.js")
+	if err != nil {
+		fmt.Println("here", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/javascript")
+	data := JsTemplate{
+		HttpUrl: s.httpHost,
+		WsUrl:   s.wsHost,
+	}
+
+	err = t.Execute(w, data)
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
