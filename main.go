@@ -43,7 +43,7 @@ type faucetServer struct {
 
 type Options struct {
 	Dev  bool   `long:"dev" description:"Use run a development server on localhost"`
-	Host string `short:"h" long:"host" description:"The domain name of the host"`
+	Host string `short:"o" long:"host" description:"The domain name of the host"`
 	Cert string `short:"c" long:"tlscert" description:"Path to the TLS certificate file"`
 	Key  string `short:"k" long:"tlskey" description:"Path to the TLS key file"`
 }
