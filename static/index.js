@@ -89,7 +89,12 @@ new Vue({
 			}
 
 			const lastCard = this.cards[this.cards.length - 1];
-			const fromHeight = lastCard.height;
+			const fromHeight = lastCard.height-1;
+
+			if (lastCard.height === 0) {
+				return;
+			}
+
 			const url = `/blocks/${fromHeight}`;
 			fetch(url)
 				.then(response => response.json())
