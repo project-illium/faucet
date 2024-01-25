@@ -37,7 +37,7 @@ type faucetServer struct {
 	wsHost           string
 	dev              bool
 
-	lockedUtoxs map[string]bool
+	lockedUtxos map[string]bool
 	mtx         sync.RWMutex
 }
 
@@ -74,7 +74,7 @@ func main() {
 		blockchainClient: blockchainClient,
 		walletClient:     walletClient,
 		dev:              opts.Dev,
-		lockedUtoxs:      make(map[string]bool),
+		lockedUtxos:      make(map[string]bool),
 		mtx:              sync.RWMutex{},
 	}
 
@@ -299,10 +299,10 @@ func (s *faucetServer) handleGetCoins(w http.ResponseWriter, r *http.Request) {
 
 	s.mtx.Lock()
 	for _, utxo := range resp.Utxos {
-		if !s.lockedUtoxs[hex.EncodeToString(utxo.Commitment)] {
+		if !s.lockedUtxos[hex.EncodeToString(utxo.Commitment)] && !utxo.Staked {
 			commitments = append(commitments, utxo.Commitment)
 			total += utxo.Amount
-			s.lockedUtoxs[hex.EncodeToString(utxo.Commitment)] = true
+			s.lockedUtxos[hex.EncodeToString(utxo.Commitment)] = true
 			if total >= amt {
 				break
 			}
@@ -320,7 +320,7 @@ func (s *faucetServer) handleGetCoins(w http.ResponseWriter, r *http.Request) {
 			s.mtx.Lock()
 			defer s.mtx.Unlock()
 			for _, c := range commitmentsToSpend {
-				delete(s.lockedUtoxs, hex.EncodeToString(c))
+				delete(s.lockedUtxos, hex.EncodeToString(c))
 			}
 		})
 
