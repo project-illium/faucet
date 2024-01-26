@@ -25,7 +25,8 @@ new Vue({
 		return {
 			cards: [
 			],
-			receivedCards: []
+			receivedCards: [],
+			isLoadingCards: false
 		};
 	},
 	mounted() {
@@ -84,14 +85,17 @@ new Vue({
 			}
 		},
 		loadMoreCards() {
-			if (this.cards.length === 0) {
+			if (this.isLoadingCards || this.cards.length === 0) {
 				return;
 			}
+
+			this.isLoadingCards = true;
 
 			const lastCard = this.cards[this.cards.length - 1];
 			const fromHeight = lastCard.height-1;
 
 			if (lastCard.height === 0) {
+				this.isLoadingCards = false;
 				return;
 			}
 
@@ -103,6 +107,9 @@ new Vue({
 				})
 				.catch(error => {
 					console.error('Error fetching more cards:', error);
+				})
+				.finally(() => {
+					this.isLoadingCards = false;
 				});
 		}
 	},

@@ -298,14 +298,31 @@ func (s *faucetServer) handleGetCoins(w http.ResponseWriter, r *http.Request) {
 	)
 
 	s.mtx.Lock()
+	// Only add utxos that
+	// - aren't locked
+	// - aren't staked
+	// - are greater than half the payout amount
+	// (this avoids selecting lots of small utxos that will
+	// increase the proving time)
 	for _, utxo := range resp.Utxos {
-		if !s.lockedUtxos[hex.EncodeToString(utxo.Commitment)] && !utxo.Staked {
+		if !s.lockedUtxos[hex.EncodeToString(utxo.Commitment)] && !utxo.Staked && utxo.Amount > amt/2 {
 			commitments = append(commitments, utxo.Commitment)
 			total += utxo.Amount
 			s.lockedUtxos[hex.EncodeToString(utxo.Commitment)] = true
 			if total >= amt {
 				break
 			}
+		}
+	}
+	// Loop through the utxos as second time and add a single utxo that
+	// less than or equal to half the payout amount (if there are any)
+	// for the purpose of consolidating some of these smaller utxos.
+	for _, utxo := range resp.Utxos {
+		if !s.lockedUtxos[hex.EncodeToString(utxo.Commitment)] && !utxo.Staked && utxo.Amount <= amt/2 {
+			commitments = append(commitments, utxo.Commitment)
+			total += utxo.Amount
+			s.lockedUtxos[hex.EncodeToString(utxo.Commitment)] = true
+			break
 		}
 	}
 	s.mtx.Unlock()
