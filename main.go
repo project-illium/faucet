@@ -136,6 +136,14 @@ func main() {
 		}
 	}()
 
+	go func() {
+		ticker := time.NewTicker(time.Minute * 30)
+
+		for range ticker.C {
+			go s.consolidateUtxos()
+		}
+	}()
+
 	mx := http.NewServeMux()
 	r := mux.NewRouter()
 	r.Methods("OPTIONS")
@@ -352,7 +360,6 @@ func (s *faucetServer) consolidateUtxos() {
 
 	var (
 		amt         = uint64(100000000)
-		total       = uint64(0)
 		commitments [][]byte
 	)
 
@@ -368,8 +375,10 @@ func (s *faucetServer) consolidateUtxos() {
 			len(commitments) < 5 {
 
 			commitments = append(commitments, utxo.Commitment)
-			total += utxo.Amount
 			s.lockedUtxos[hex.EncodeToString(utxo.Commitment)] = true
+		}
+		if len(commitments) >= 5 {
+			break
 		}
 	}
 	s.mtx.Unlock()
