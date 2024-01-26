@@ -359,8 +359,9 @@ func (s *faucetServer) consolidateUtxos() {
 	}
 
 	var (
-		amt         = uint64(100000000)
-		commitments [][]byte
+		amt          = uint64(100000000)
+		commitments  [][]byte
+		hasLargeUtxo = false
 	)
 
 	s.mtx.Lock()
@@ -368,7 +369,19 @@ func (s *faucetServer) consolidateUtxos() {
 	// - locked
 	// - staked
 	// - greater than half the payout amount
+	//
+	// Plus one larger utxo to make sure that
+	// we can cover the fee.
 	for _, utxo := range resp.Utxos {
+		if !s.lockedUtxos[hex.EncodeToString(utxo.Commitment)] &&
+			!utxo.Staked &&
+			utxo.Amount > amt && !hasLargeUtxo {
+
+			commitments = append(commitments, utxo.Commitment)
+			hasLargeUtxo = true
+			continue
+		}
+
 		if !s.lockedUtxos[hex.EncodeToString(utxo.Commitment)] &&
 			!utxo.Staked &&
 			utxo.Amount <= amt/2 &&
@@ -383,7 +396,11 @@ func (s *faucetServer) consolidateUtxos() {
 	}
 	s.mtx.Unlock()
 
-	time.AfterFunc(time.Minute*10, func() {
+	if !hasLargeUtxo {
+		return
+	}
+
+	time.AfterFunc(time.Minute*20, func() {
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
 		for _, c := range commitments {
