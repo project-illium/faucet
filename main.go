@@ -396,7 +396,7 @@ func (s *faucetServer) consolidateUtxos() {
 	}
 	s.mtx.Unlock()
 
-	if !hasLargeUtxo {
+	if !hasLargeUtxo || len(commitments) < 2 {
 		return
 	}
 
