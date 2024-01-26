@@ -314,17 +314,6 @@ func (s *faucetServer) handleGetCoins(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	// Loop through the utxos as second time and add a single utxo that
-	// less than or equal to half the payout amount (if there are any)
-	// for the purpose of consolidating some of these smaller utxos.
-	for _, utxo := range resp.Utxos {
-		if !s.lockedUtxos[hex.EncodeToString(utxo.Commitment)] && !utxo.Staked && utxo.Amount <= amt/2 {
-			commitments = append(commitments, utxo.Commitment)
-			total += utxo.Amount
-			s.lockedUtxos[hex.EncodeToString(utxo.Commitment)] = true
-			break
-		}
-	}
 	s.mtx.Unlock()
 
 	if total < amt {
@@ -352,6 +341,55 @@ func (s *faucetServer) handleGetCoins(w http.ResponseWriter, r *http.Request) {
 		}
 	}(commitments, m.Addr)
 	fmt.Fprint(w, string("{}"))
+}
+
+func (s *faucetServer) consolidateUtxos() {
+	resp, err := s.walletClient.GetUtxos(context.Background(), &pb.GetUtxosRequest{})
+	if err != nil {
+		fmt.Printf("Error fetching wallet utxos: %s\n", err.Error())
+		return
+	}
+
+	var (
+		amt         = uint64(100000000)
+		total       = uint64(0)
+		commitments [][]byte
+	)
+
+	s.mtx.Lock()
+	// Add a max of 5 utoxs that aren't:
+	// - locked
+	// - staked
+	// - greater than half the payout amount
+	for _, utxo := range resp.Utxos {
+		if !s.lockedUtxos[hex.EncodeToString(utxo.Commitment)] &&
+			!utxo.Staked &&
+			utxo.Amount <= amt/2 &&
+			len(commitments) < 5 {
+
+			commitments = append(commitments, utxo.Commitment)
+			total += utxo.Amount
+			s.lockedUtxos[hex.EncodeToString(utxo.Commitment)] = true
+		}
+	}
+	s.mtx.Unlock()
+
+	time.AfterFunc(time.Minute*10, func() {
+		s.mtx.Lock()
+		defer s.mtx.Unlock()
+		for _, c := range commitments {
+			delete(s.lockedUtxos, hex.EncodeToString(c))
+		}
+	})
+
+	_, err = s.walletClient.SweepWallet(context.Background(), &pb.SweepWalletRequest{
+		ToAddress:        s.address,
+		InputCommitments: commitments,
+	})
+	if err != nil {
+		fmt.Printf("Error sweeping utxos: %s\n", err.Error())
+		return
+	}
 }
 
 type HtmlTemplate struct {
