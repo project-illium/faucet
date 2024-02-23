@@ -300,7 +300,7 @@ func (s *faucetServer) handleGetCoins(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var (
-		amt         = uint64(100000000)
+		amt         = uint64(repo.DefaultMinimumStake)
 		total       = uint64(0)
 		commitments [][]byte
 	)
@@ -317,7 +317,8 @@ func (s *faucetServer) handleGetCoins(w http.ResponseWriter, r *http.Request) {
 			commitments = append(commitments, utxo.Commitment)
 			total += utxo.Amount
 			s.lockedUtxos[hex.EncodeToString(utxo.Commitment)] = true
-			if total >= amt {
+			fee := walletlib.ComputeFee(len(commitments), 2, repo.DefaultFeePerKilobyte)
+			if total >= amt+uint64(fee) {
 				break
 			}
 		}
@@ -340,7 +341,7 @@ func (s *faucetServer) handleGetCoins(w http.ResponseWriter, r *http.Request) {
 
 		_, err = s.walletClient.Spend(context.Background(), &pb.SpendRequest{
 			ToAddress:        toAddr,
-			Amount:           100000000,
+			Amount:           repo.DefaultMinimumStake,
 			InputCommitments: commitmentsToSpend,
 		})
 		if err != nil {
@@ -359,7 +360,7 @@ func (s *faucetServer) consolidateUtxos() {
 	}
 
 	var (
-		amt          = uint64(100000000)
+		amt          = uint64(repo.DefaultMinimumStake)
 		commitments  [][]byte
 		hasLargeUtxo = false
 	)
