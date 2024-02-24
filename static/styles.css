@@ -16,14 +16,30 @@ body {
     padding: 20px;
 }
 
-.ascii-art {
-    color: #FF4081;
-    font-family: monospace;
-    font-size: 20px;
-    margin-bottom: 0px;
-    display: inline-block;
-    text-align: left;
-    margin-left: 200px;
+.flex-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.flex-container img, .flex-container .logo {
+    margin-right: 0px;
+}
+
+.logo-image {
+    width: 200px;
+    height: 200px;
+    margin-top: 85px;
+}
+
+.logo {
+    color: #FF79E9;
+    font-family: 'Orbitron', sans-serif;;
+    font-size: 120px;
+    font-weight: 600;
+    margin-bottom: 32px;
+    text-transform: uppercase;
+    user-select: none;
 }
 
 .input-field {
