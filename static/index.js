@@ -4,7 +4,7 @@ Vue.component('card', {
     <div class="card">
       <div class="card-content">
         <div class="card-header">
-        	<p><strong>BlockID:</strong> <span>{{ data.blockID }}</span></p>
+        	<p><strong>Block ID:</strong> <span>{{ data.blockID }}</span></p>
   			<p><strong>Producer:</strong> <span>{{ data.producerID }}</span></p>
   			<p><strong>Height:</strong> <span>{{ data.height }}</span></p>
   		</div>
@@ -92,7 +92,7 @@ new Vue({
 			this.isLoadingCards = true;
 
 			const lastCard = this.cards[this.cards.length - 1];
-			const fromHeight = lastCard.height-1;
+			const fromHeight = lastCard.height - 1;
 
 			if (lastCard.height === 0) {
 				this.isLoadingCards = false;
@@ -121,7 +121,7 @@ new Vue({
 	}
 })
 
-document.getElementById('get-coins-form').addEventListener('submit', function(e) {
+document.getElementById('get-coins-form').addEventListener('submit', function (e) {
 	e.preventDefault(); // Prevent the default form submission
 
 	const input = document.getElementById('input').value;
