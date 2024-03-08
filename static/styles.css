@@ -130,6 +130,7 @@ body {
     overflow-wrap: break-word;
     text-align: center;
     width: 100%;
+    max-width: 700px;
     /* margin-left: -200px; */
 }
 
