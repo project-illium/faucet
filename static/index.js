@@ -4,12 +4,12 @@ Vue.component('card', {
     <div class="card">
       <div class="card-content">
         <div class="card-header">
-        	<p><strong>Block ID:</strong> <span>{{ data.blockID }}</span></p>
-  			<p><strong>Producer:</strong> <span>{{ data.producerID }}</span></p>
-  			<p><strong>Height:</strong> <span>{{ data.height }}</span></p>
+        	<p><strong>Block ID</strong><br /> <span>{{ data.blockID }}</span></p>
+  			<p><strong>Producer</strong><br /> <span>{{ data.producerID }}</span></p>
+  			<p><strong>Height</strong><br /> <span>{{ data.height }}</span></p>
   		</div>
         <div class="card-body">
-          <h3>Txids:</h3>
+          <h3>Txids</h3>
           <ul>
             <li v-for="txid in data.txids" :key="txid">{{ txid }}</li>
           </ul>
