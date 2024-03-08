@@ -9,8 +9,8 @@ require (
 	github.com/gorilla/websocket v1.5.1
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/libp2p/go-libp2p v0.32.2
-	github.com/project-illium/ilxd v0.0.7-alpha.0.20240223144912-c31fc283964e
-	github.com/project-illium/walletlib v0.0.0-20240220013424-f81d7bdc3de6
+	github.com/project-illium/ilxd v0.0.9-alpha.0.20240307154535-9816cbd04bba
+	github.com/project-illium/walletlib v0.0.0-20240223175359-2d0592c5b456
 	google.golang.org/grpc v1.60.1
 )
 
