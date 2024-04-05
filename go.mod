@@ -9,8 +9,8 @@ require (
 	github.com/gorilla/websocket v1.5.1
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/libp2p/go-libp2p v0.32.2
-	github.com/project-illium/ilxd v0.0.9-alpha.0.20240307154535-9816cbd04bba
-	github.com/project-illium/walletlib v0.0.0-20240223175359-2d0592c5b456
+	github.com/project-illium/ilxd v0.0.11-alpha
+	github.com/project-illium/walletlib v0.0.0-20240326161312-7fb83508aa41
 	google.golang.org/grpc v1.60.1
 )
 
@@ -72,6 +72,6 @@ require (
 	golang.org/x/term v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231002182017-d307bd883b97 // indirect
-	google.golang.org/protobuf v1.32.0 // indirect
+	google.golang.org/protobuf v1.33.0 // indirect
 	lukechampine.com/blake3 v1.2.1 // indirect
 )
