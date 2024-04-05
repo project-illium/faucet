@@ -228,8 +228,8 @@ func (s *faucetServer) handleGetBlocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for i := 0; i < 10; i++ {
-		resp, err := s.blockchainClient.GetBlock(context.Background(), &pb.GetBlockRequest{
-			IdOrHeight: &pb.GetBlockRequest_Height{Height: uint32(idx)},
+		resp, err := s.blockchainClient.GetRawBlock(context.Background(), &pb.GetRawBlockRequest{
+			IdOrHeight: &pb.GetRawBlockRequest_Height{Height: uint32(idx)},
 		})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
